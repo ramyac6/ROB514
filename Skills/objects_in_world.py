@@ -28,7 +28,7 @@ def read_object(name):
     """Read in the object from Data/name.json and convert the XYs to a numpy array
     @param name - name of the json file
     @return an object as a dictionary"""
-    with open("../Skills/Data/" + name + ".json", "r") as f:
+    with open("Data/" + name + ".json", "r") as f:
         obj = load(f)
         obj["Pts"] = get_pts_as_numpy_array(obj)
         obj["Matrix"] = make_matrix_from_sequence(obj["Matrix seq"])
