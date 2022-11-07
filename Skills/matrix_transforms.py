@@ -229,9 +229,7 @@ def check_is_rotation(mat, b_print=False):
     # TODO: Return TRUE if the matrix is orthonormal/rotation matrix
     #       Return FALSE otherwise
     #       If b_print_test is True, also print out why the rotation matrix failed
-    
-    
-    if np.all((np.matmul(mat, mat.T)) == np.identity(3) and (np.linalg.det(mat)==1.0): 
+    if np.allclose(np.matmul(mat, mat.T), np.identity(3)):
         return True
     if (b_print):
         print("rotation matrix inverse isn't transpose")
@@ -339,11 +337,13 @@ def test_rotation_matrix():
             raise ValueError("Rotation matrix inverse not transpose {theta}, {mat}")
 
         if not check_is_rotation(mat):
+            print(mat@mat.T)
             raise ValueError("Rotation matrix not orthonormal {theta}, {mat}")
 
         theta_back = get_theta_from_matrix(mat)
         if not np.isclose(theta, theta_back):
             raise ValueError(f"Matrix not built correctly {mat}, {theta}, {theta_back}")
+test_rotation_matrix()
 
 
 def test_matrices():
