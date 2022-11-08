@@ -38,6 +38,10 @@ def set_transform_base(obj_wedge, base_width=1.0, base_height=0.5):
     #  (stored in the key "Matrix") will happen when we make the plot
     # Open up Data/Wedge.json if you want to see the XYs (this shape is made in objects_in_world.py)
 # YOUR CODE HERE
+    obj_wedge["Matrix seq"].append(mt.make_scale_dict(1.0,1.0))
+    obj_wedge["Matrix seq"].append(mt.make_rotation_dict(0.0))
+    obj_wedge["Matrix seq"].append(mt.make_translation_dict(0.0,0.0))
+
     # Force recalculation of matrix
     obj_wedge["Matrix"] = mt.make_matrix_from_sequence(obj_wedge["Matrix seq"])
 
@@ -60,6 +64,9 @@ def set_transform_link(obj_square, arm_length, arm_height):
     # TODO: append transformations to obj_square["Matrix seq"] to get it in the right position/size/orientation
     #  Reminder that squares are defined by -1,-1 to 1,1, and so currently have side lengths of 2...
 # YOUR CODE HERE
+    obj_square["Matrix seq"].append(mt.make_scale_dict(1.0,1.0))
+    obj_square["Matrix seq"].append(mt.make_rotation_dict(0.0))
+    obj_square["Matrix seq"].append(mt.make_translation_dict(0.0,0.0))
 
     # Force recalculation of matrix
     obj_square["Matrix"] = mt.make_matrix_from_sequence(obj_square["Matrix seq"])
@@ -78,6 +85,9 @@ def set_transform_palm(obj_square, palm_width):
 
     # TODO: append transformations to obj_square["Matrix seq"] to get it in the right position/size/orientation
 # YOUR CODE HERE
+    obj_square["Matrix seq"].append(mt.make_scale_dict(1.0,1.0))
+    obj_square["Matrix seq"].append(mt.make_rotation_dict(0.0))
+    obj_square["Matrix seq"].append(mt.make_translation_dict(0.0,0.0))
 
     # Force recalculation of matrix
     obj_square["Matrix"] = mt.make_matrix_from_sequence(obj_square["Matrix seq"])
@@ -100,6 +110,9 @@ def set_transform_finger(obj_wedge, palm_width, finger_size, b_is_top):
 
     # TODO: append transformations to obj_wedge["Matrix seq"] to get it in the right position/size/orientation
     #  b_is_top means it's the top finger...
+    obj_wedge["Matrix seq"].append(mt.make_scale_dict(1.0,1.0))
+    obj_wedge["Matrix seq"].append(mt.make_rotation_dict(0.0))
+    obj_wedge["Matrix seq"].append(mt.make_translation_dict(0.0,0.0))
 # YOUR CODE HERE
 
     # Force recalculation of matrix
@@ -214,7 +227,14 @@ def get_matrix_base(base_link):
     #  Figure out how (1, 0) should be rotated to make it point up
     #    Reminder: mt.get_xx_from_matrix is helpful here...
     #    Rotate first, then translate
-# YOUR CODE HERE
+    return np.ones((3,3))
+
+    # YOUR CODE HERE
+    dx,dy = mt.get_dx_dy_from_matrix(base_link)
+    theta = mt.get_theta_from_matrix(base_link)
+    rotate_translate = [{"type": "rotate", "theta": theta},
+                              {"type": "translate", "dx": dx, "dy": dy}]
+    return mt.make_matrix_from_sequence(rotate_translate)
 
 
 def get_rotation_link(arm_link):
@@ -223,6 +243,7 @@ def get_rotation_link(arm_link):
     @return 3x3 rotation matrix"""
 
     # TODO Create a rotation matrix based on the link's angle (stored with the key "Angle")
+    return np.ones((3,3))
 # YOUR CODE HERE
 
 
@@ -238,6 +259,7 @@ def get_matrix_link(arm_link):
     #  Figure out how (1,0) should be rotated to make it point up
     #    Reminder: mt.get_xx_from_matrix is helpful here...
     #    Rotate first, then translate
+    return np.ones((3,3))
 # YOUR CODE HERE
 
 
@@ -262,7 +284,10 @@ def get_matrices_all_links(arm_with_angles):
     for link in arm_with_angles[1:-1]:
         # TODO: append a matrix to the list that is the matrix that we will multiply this link from
         #   In other words, multiply the last matrix by the matrix for this link then add it to the list
-# YOUR CODE HERE
+
+        matrices.append(get_matrix_base(link))
+
+    # YOUR CODE HERE
 
     return matrices
 
@@ -277,7 +302,8 @@ def get_matrix_finger(finger):
     #   Translate the base of the finger back to the origin, rotate it, then translate it back out
     #   Reminder: The base of the finger can be found using mt.get_dx_dy_from_matrix
 # YOUR CODE HERE
-    return matrix
+    return np.ones((3,3))
+
 
 
 # ----------------- Gripper location --------------------------
