@@ -38,6 +38,9 @@ def set_transform_base(obj_wedge, base_width=1.0, base_height=0.5):
     #  (stored in the key "Matrix") will happen when we make the plot
     # Open up Data/Wedge.json if you want to see the XYs (this shape is made in objects_in_world.py)
 # YOUR CODE HERE
+    obj_wedge["Matrix seq"].append(mt.make_scale_dict(0.25,0.5))
+    obj_wedge["Matrix seq"].append(mt.make_rotation_dict(np.pi / 2.0))
+    obj_wedge["Matrix seq"].append(mt.make_translation_dict(0.0,0.25))
     # Force recalculation of matrix
     obj_wedge["Matrix"] = mt.make_matrix_from_sequence(obj_wedge["Matrix seq"])
 
@@ -60,6 +63,8 @@ def set_transform_link(obj_square, arm_length, arm_height):
     # TODO: append transformations to obj_square["Matrix seq"] to get it in the right position/size/orientation
     #  Reminder that squares are defined by -1,-1 to 1,1, and so currently have side lengths of 2...
 # YOUR CODE HERE
+    obj_square["Matrix seq"].append(mt.make_scale_dict(arm_length / 2.0, arm_height / 2.0))
+    obj_square["Matrix seq"].append(mt.make_translation_dict(arm_length / 2.0, 0.0))
 
     # Force recalculation of matrix
     obj_square["Matrix"] = mt.make_matrix_from_sequence(obj_square["Matrix seq"])
@@ -78,6 +83,8 @@ def set_transform_palm(obj_square, palm_width):
 
     # TODO: append transformations to obj_square["Matrix seq"] to get it in the right position/size/orientation
 # YOUR CODE HERE
+    obj_square["Matrix seq"].append(mt.make_scale_dict(palm_width / (2.0*10), palm_width / 2.0))
+    obj_square["Matrix seq"].append(mt.make_translation_dict(0.0,0.0))
 
     # Force recalculation of matrix
     obj_square["Matrix"] = mt.make_matrix_from_sequence(obj_square["Matrix seq"])
@@ -101,6 +108,12 @@ def set_transform_finger(obj_wedge, palm_width, finger_size, b_is_top):
     # TODO: append transformations to obj_wedge["Matrix seq"] to get it in the right position/size/orientation
     #  b_is_top means it's the top finger...
 # YOUR CODE HERE
+    obj_wedge["Matrix seq"].append(mt.make_scale_dict(finger_size[0]/2.0,finger_size[1]/2.0))
+    if b_is_top:
+        obj_wedge["Matrix seq"].append(mt.make_translation_dict(palm_width / 2.0, palm_width / 2.0))
+    else:
+        obj_wedge["Matrix seq"].append(mt.make_translation_dict(palm_width / 2.0, palm_width / -2.0))
+
 
     # Force recalculation of matrix
     obj_wedge["Matrix"] = mt.make_matrix_from_sequence(obj_wedge["Matrix seq"])
@@ -214,6 +227,15 @@ def get_matrix_base(base_link):
     #  Figure out how (1, 0) should be rotated to make it point up
     #    Reminder: mt.get_xx_from_matrix is helpful here...
     #    Rotate first, then translate
+    theta = mt.get_theta_from_matrix(base_link["Matrix"])
+    dx, dy = mt.get_dx_dy_from_matrix(base_link["Matrix"])
+    sx, sy = mt.get_sx_sy_from_matrix(base_link["Matrix"])
+
+    rot_trans = [{"type":"rotate", "theta": theta},
+                 {"type":"translate", "dx": dx, "dy": dy*2}]
+
+    return mt.make_matrix_from_sequence(rot_trans)
+
 # YOUR CODE HERE
 
 
@@ -223,6 +245,8 @@ def get_rotation_link(arm_link):
     @return 3x3 rotation matrix"""
 
     # TODO Create a rotation matrix based on the link's angle (stored with the key "Angle")
+    return mt.make_rotation_matrix(arm_link["Angle"])
+
 # YOUR CODE HERE
 
 
@@ -238,6 +262,15 @@ def get_matrix_link(arm_link):
     #  Figure out how (1,0) should be rotated to make it point up
     #    Reminder: mt.get_xx_from_matrix is helpful here...
     #    Rotate first, then translate
+    theta = mt.get_theta_from_matrix(arm_link["Matrix"])
+    dx, dy = mt.get_dx_dy_from_matrix(arm_link["Matrix"])
+    sx, sy = mt.get_sx_sy_from_matrix(arm_link["Matrix"])
+
+    rot_trans = [{"type":"rotate", "theta": theta},
+                 {"type":"translate", "dx": dx, "dy": dy}]
+
+    return mt.make_matrix_from_sequence(rot_trans)
+
 # YOUR CODE HERE
 
 
@@ -262,8 +295,11 @@ def get_matrices_all_links(arm_with_angles):
     for link in arm_with_angles[1:-1]:
         # TODO: append a matrix to the list that is the matrix that we will multiply this link from
         #   In other words, multiply the last matrix by the matrix for this link then add it to the list
-# YOUR CODE HERE
+        matrices.append(matrices[-1]@get_matrix_base(link))
 
+    # YOUR CODE HERE
+    # NEED TO ADD LAST GRIPPER
+    
     return matrices
 
 
@@ -277,8 +313,11 @@ def get_matrix_finger(finger):
     #   Translate the base of the finger back to the origin, rotate it, then translate it back out
     #   Reminder: The base of the finger can be found using mt.get_dx_dy_from_matrix
 # YOUR CODE HERE
-    return matrix
-
+    dx, dy = mt.get_dx_dy_from_matrix(finger["Matrix"])
+    rot_trans = [{"type":"translate", "dx": -1.0*dx, "dy": -1.0*dy},
+                 {"type":"rotate", "theta": finger["Angle"]},
+                 {"type":"translate", "dx": dx, "dy": dy}]
+    return mt.make_matrix_from_sequence(rot_trans)
 
 # ----------------- Gripper location --------------------------
 def get_gripper_location(arm_with_angles):
@@ -364,6 +403,7 @@ def plot_arm_components(axs, arm, b_with_angles=False):
         # TODO: Rotate each finger by the given amount, then rotate the entire gripper by the wrist angle
         # Step 1: Edit get_matrix_finger to get the matrix to move just the finger
         # Step 2: Multiply that matrix by the rotation matrix for the palm
+        rot_matrix = get_matrix_finger(finger)@rot_matrix
 # YOUR CODE HERE
         plot_object_in_world_coord_system(axs[-1], finger, rot_matrix)
 
@@ -445,7 +485,7 @@ if __name__ == '__main__':
     # Should show all 5 components, the base, 3 links, and the gripper
     # Step 1 - note, comment out this one if you don't want both drawn on top of each other when you do step 2
     fig, axs = plt.subplots(1, len(arm_geometry), figsize=(4 * len(arm_geometry), 4))
-    plot_arm_components(axs, arm_geometry)
+    #plot_arm_components(axs, arm_geometry)
 
     # Step 2 - rotate each link element in its own cooridinate system
     # Several different angles to check your results with
@@ -453,8 +493,8 @@ if __name__ == '__main__':
     angles_check_fingers = [np.pi/2, -np.pi/4, -3.0 * np.pi/4, [0.0, np.pi/4.0, -np.pi/4.0]]
     angles_check_wrist = [np.pi/2, -np.pi/4, -3.0 * np.pi/4, [np.pi/3.0, 0.0, 0.0]]
     angles_check = [np.pi/2, -np.pi/4, -3.0 * np.pi/4, [np.pi/3.0, np.pi/4.0, -np.pi/4.0]]
-    set_angles_of_arm_geometry(arm_geometry, angles_check)
-    # plot_arm_components(axs, arm_geometry, b_with_angles=True)
+    set_angles_of_arm_geometry(arm_geometry, angles_check_fingers)
+    plot_arm_components(axs, arm_geometry, b_with_angles=True)
 
     # Step 3 & 4 - step 4 adds in drawing the green + for the gripper
     # Plot the entire arm
@@ -464,7 +504,7 @@ if __name__ == '__main__':
     angles_gripper_check = [np.pi/6.0, -np.pi/4, 1.5 * np.pi/4, [np.pi/3.0, -np.pi/8.0, np.pi/6.0]]
 
     # Actually set the matrices
-    set_angles_of_arm_geometry(arm_geometry, angles_gripper_check)
+    set_angles_of_arm_geometry(arm_geometry, angles_none)
     matrices = get_matrices_all_links(arm_geometry)
 
     # Print out the matrices (if you want)

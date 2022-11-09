@@ -44,7 +44,8 @@ def make_scale_matrix(scale_x=1.0, scale_y=1.0):
     mat = np.identity(3)
     # TODO: set the relevant values of mat
 # YOUR CODE HERE
-
+    mat[0][0] = mat[0][0]*scale_x
+    mat[1][1] = mat[1][1]*scale_y
     return mat
 
 
@@ -57,7 +58,8 @@ def make_translation_matrix(d_x=0.0, d_y=0.0):
     mat = np.identity(3)
     # TODO: set the relevant values of mat
 # YOUR CODE HERE
-
+    mat[0][2] = d_x
+    mat[1][2] = d_y
     return mat
 
 
@@ -70,7 +72,10 @@ def make_rotation_matrix(theta=0.0):
     mat = np.identity(3)
     # TODO: set the relevant values of mat
 # YOUR CODE HERE
-
+    mat[0][0] = np.cos(theta)
+    mat[0][1] = -1*np.sin(theta)
+    mat[1][0] = np.sin(theta)
+    mat[1][1] = np.cos(theta)
     return mat
 
 
@@ -104,6 +109,7 @@ def make_translation_dict(dx, dy):
     return {"type": "translate", "dx": dx, "dy": dy}
 
 
+# +
 def make_matrix_from_sequence(seq):
     """ Turn an array of dictionaries with matrix type and params into a single 3x3 matrix
     Assumption: The first item in the list is the first transformation to apply to the object
@@ -126,9 +132,13 @@ def make_matrix_from_sequence(seq):
             raise ValueError(f"Expected one of translate, scale, rotate, got {s['type']}")
         # TODO: multiply next_mat by mat and store the result in mat
         #    (reminder: @ is matrix multiplication)
+        mat = next_mat@mat
+
 # YOUR CODE HERE
     return mat
 
+
+# -
 
 # -------------------------------------------- Going backwards -----------
 # These are check/debugging functions that are handy to have around. In essence, they convert from a matrix back
@@ -147,6 +157,7 @@ def get_sx_sy_from_matrix(mat):
     # Remember that when multiplying matrices by Vectors (as opposed to points) you should put 0 in that
     #   third coordinate, since vectors do not have a location
     # np.linalg.norm() will get the length of the vector
+    return np.linalg.norm(mat[0]), np.linalg.norm(mat[1])
 # YOUR CODE HERE
 
 
@@ -161,6 +172,8 @@ def get_dx_dy_from_matrix(mat):
     # Don't forget to turn origin into a homogenous point...
     #   Multiply the origin by the matrix then return the x and y components
     # Reminder: @ is the matrix multiplication
+    dxdy = mat@np.array([[0],[0],[1]])
+    return dxdy[0][0], dxdy[1][0]
 # YOUR CODE HERE
 
 
@@ -175,6 +188,11 @@ def get_axes_from_matrix(mat):
     #  1) Set x_axis to be a unit vector pointing down the x axis
     #  2) Set y_axis to be a unit vector pointing down the y axis
     #  Multiply by the matrix to get the new "x" and "y" axes
+    x_axis = np.array([[1],[0],[0]])
+    y_axis = np.array([[0],[1],[0]])
+    new_x = mat@x_axis
+    new_y = mat@y_axis
+    return new_x[0:2].flatten(),new_y[0:2].flatten()
 # YOUR CODE HERE
 
 
@@ -188,6 +206,8 @@ def get_theta_from_matrix(mat):
     # Step 2) use arctan2 to turn the rotated x axis vector into an angle
     #   Use the x axis because theta for the x axis is 0 (makes the math easier)
     # Reminder: arctan2 takes (y, x)
+    x_axis, _ = get_axes_from_matrix(mat)
+    return np.arctan2(x_axis[1],x_axis[0])
 # YOUR CODE HERE
 
 
@@ -207,7 +227,11 @@ def check_is_rotation(mat, b_print=False):
     #       Return FALSE otherwise
     #       If b_print_test is True, also print out why the rotation matrix failed
 # YOUR CODE HERE
-    return True
+    if np.allclose(np.matmul(mat, mat.T), np.identity(3)):
+        return True
+    if (b_print):
+        print("rotation matrix inverse isn't transpose")
+    return False
 
 
 # Check if flip/mirror
@@ -223,8 +247,13 @@ def check_is_mirrored(mat):
 
     # TODO:
     #  Step 1: Get the transformed axes using the get_axes_from_matrix
+    x_axis, y_axis = get_axes_from_matrix(mat)
     #  Step 2: Get the cross product of the two matrices (see np.cross). Also make sure you do x, y (order matters for cross product)
+    cross_axis = np.cross(np.array([x_axis[0],x_axis[1],0]),np.array([y_axis[0],y_axis[1],0]))
     #  Step 3: Check that the resulting vector points in the positive z direction (x and y values are 0, z is positive)
+    if cross_axis[0] == 0.0 and cross_axis[1] == 0.0 and cross_axis[2] > 0.0:
+        return False
+    return True
     #  Note: Only the DIRECTION matters - not how long the vector is
 # YOUR CODE HERE
 
@@ -242,11 +271,16 @@ def check_preserves_angles(mat):
 
     # TODO:
     #  Step 1: Get the transformed axes using the get_axes_from_matrix
+    x_axis, y_axis = get_axes_from_matrix(mat)
+
     #  Step 2: Get the angle between the transformed axes (remember that cos(angle) = dot(u,v) / (||u|| ||v||)
     #    see https://www.wikihow.com/Find-the-Angle-Between-Two-Vectors
+    dot = np.dot(x_axis,y_axis)
+    lengths = np.linalg.norm(x_axis)*np.linalg.norm(y_axis)
     #  Step 3: Check that the angle between them is 90 degrees (reminder, numpy does everything in radians)
     #    Actually, you can just check that the dot product is close to 0
-# YOUR CODE HERE
+    return np.isclose([dot],[0.0])
+    # YOUR CODE HERE
 
 
 # Check/test functions for autograder
@@ -361,12 +395,17 @@ def make_pts_representing_circle(n_pts=25):
     @return a 3xn numpy matrix"""
 
     ts = np.linspace(0, np.pi * 2, n_pts)
+    ts = np.linspace(0, np.pi * 2, n_pts)
     # TODO: make a 3 x n_pts array of points for the circle
     #   These are the x,y points of a unit circle centered at the origin
     #   These are the points that we will draw, both in their original location and in their transformed location
     # Step 1: Make a 3 x n_pts numpy array - I like to use np.ones, because it sets the homogenous coordinate for me
+    pts = np.ones([3,n_pts])
     # Step 2: Set the x values of the array to be cos(t) for the ts given above (you don't need a for loop for this,
     #   see numpy array math
+    for i in range(n_pts):
+        pts[0][i]= np.cos(ts[i])
+        pts[1][i]= np.sin(ts[i])
     # Step 3: Do the same for the y values, but set to sin(t)
 # YOUR CODE HERE
     return pts
@@ -413,6 +452,11 @@ def plot_axes_and_circle(axs, mat):
 
     # TODO: Transform circle by mat and put new points in pts_moved
 # YOUR CODE HERE
+    pts_moved = np.ones([3,25])
+    for i in range(25):
+        pts_moved[0][i] = (mat@pts[:,i])[0]
+        pts_moved[1][i] = (mat@pts[:,i])[1]
+        
     axs.plot(pts_moved[0, :], pts_moved[1, :], ':g')
 
 
@@ -455,11 +499,18 @@ def example_order_matters():
     #   Set mat to be a translation, rotation matrix (same params as above)
     axs[0, 1].set_title("Trans rot")
 # YOUR CODE HERE
+    reverse_seq_rot_trans = [
+                     {"type":"translate", "dx": 1, "dy": 2},{"type":"rotate", "theta": np.pi/4.0}]
+
+    mat = make_matrix_from_sequence(reverse_seq_rot_trans)
     plot_axes_and_circle(axs[0, 1], mat)
 
     # TODO Now do a matrix (mat) that is a scale 0.5,2.0, rotate pi/4, translate (1,2)
 # YOUR CODE HERE
-
+    scale_rotate_translate = [{"type":"scale", "sx": 0.5, "sy": 2.0},
+                             {"type":"rotate", "theta": np.pi/4.0},
+                             {"type":"translate", "dx": 1, "dy": 2}]
+    mat = make_matrix_from_sequence(scale_rotate_translate)
     axs[1, 0].set_title("Scl rot trans")
     plot_axes_and_circle(axs[1, 0], mat)
 
@@ -467,7 +518,10 @@ def example_order_matters():
     # TODO Now do a matrix (mat) that is the REVERSE of the scale, rotate, translate
 # YOUR CODE HERE
     axs[1, 1].set_title("Trans rot scl")
-
+    reverse_scale_rotate_translate = [{"type":"translate", "dx": 1, "dy": 2},
+                             {"type":"rotate", "theta": np.pi/4.0},
+                             {"type":"scale", "sx": 0.5, "sy": 2.0}]
+    mat = make_matrix_from_sequence(reverse_scale_rotate_translate)
     plot_axes_and_circle(axs[1, 1], mat)
 
 
@@ -479,6 +533,8 @@ def example_weird_geometry():
     # TODO: Make seq_mirrored so that the x,y axes are flipped. Draw the the flipped geometry
     #   at 2.5 2.5 (see mirrored figure in slides https://docs.google.com/presentation/d/1iTi45y5AghMZRgStPX4mPdR7uYFQdRBjaekOW7ESTxM/edit?usp=sharing)
 # YOUR CODE HERE
+    seq_mirrored = [{"type":"scale", "sx": -1.0, "sy": 1.0},
+                   {"type":"translate", "dx": 2.5, "dy": 2.5}]
 
     mat = make_matrix_from_sequence(seq_mirrored)
     axs[0].set_title("Mirrored")
@@ -488,6 +544,9 @@ def example_weird_geometry():
     # TODO: Make seq_skew so that the axes (red blue) are no longer 90 degrees. There are multiple solutions to this, btw.
     #  Draw the the flipped geometry at 2.5 2.5 (see skewed figure in slides https://docs.google.com/presentation/d/1iTi45y5AghMZRgStPX4mPdR7uYFQdRBjaekOW7ESTxM/edit?usp=sharing)
 # YOUR CODE HERE
+    seq_skew = [{"type":"rotate", "theta": np.pi/4.0},
+                {"type":"scale", "sx": 0.5, "sy": 2.0},
+                {"type":"translate", "dx": 2.5, "dy": 2.5}]
 
     mat = make_matrix_from_sequence(seq_skew)
     axs[1].set_title("Skewed")
@@ -508,6 +567,13 @@ def example_uncentered_geometry():
     #  Rotating the original geometry so that the x axis is "up"
     # Note: You can use the make_x_matrix commands to move the points
 # YOUR CODE HERE
+    pts_circle_lower_left_origin = make_matrix_from_sequence([{"type":"translate", "dx": 1.0, "dy": 1.0}])@pts_circle
+    pts_circle_x_up = make_matrix_from_sequence([{"type":"rotate", "theta": np.pi / 2.0}])@pts_circle
+    pts_circle_x_up_lower_left_origin = make_matrix_from_sequence([{"type":"rotate", "theta": np.pi / 2.0},{"type":"translate", "dx": 1.0, "dy": 1.0}])@pts_circle
+    pts_zigzag_lower_left_origin = make_matrix_from_sequence([{"type":"translate", "dx": 1.0, "dy": 1.0}])@pts_zigzag
+    pts_zigzag_x_up = make_matrix_from_sequence([{"type":"rotate", "theta": np.pi / 2.0}])@pts_zigzag
+    pts_zigzag_x_up_lower_left_origin = make_matrix_from_sequence([{"type":"rotate", "theta": np.pi / 2.0},{"type":"translate", "dx": 1.0, "dy": 1.0}])@pts_zigzag
+
 
     seq_scl_rot_trans = [{"type":"scale", "sx":0.5, "sy":0.75},
                          {"type":"rotate", "theta": np.pi/3.0},
@@ -538,7 +604,6 @@ def example_uncentered_geometry():
         # Draw the axes and the box
         plot_axes_and_box(axs[i+1], mat)
         axs[i+1].set_title(n)
-
 
 if __name__ == '__main__':
     # Call the test routines
