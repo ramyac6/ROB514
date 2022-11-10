@@ -63,6 +63,7 @@ def make_translation_matrix(d_x=0.0, d_y=0.0):
     return mat
 
 
+
 def make_rotation_matrix(theta=0.0):
     """Create a 3x3 rotation matrix that rotates counter clockwise by theta
     Note that it is convention to rotate counter clockwise - there's no mathematical reason for it
@@ -77,6 +78,7 @@ def make_rotation_matrix(theta=0.0):
     mat[1][0] = np.sin(theta)
     mat[1][1] = np.cos(theta)
     return mat
+
 
 
 # ---------------------------- Text versions of matrices ------------------------
@@ -133,7 +135,6 @@ def make_matrix_from_sequence(seq):
         # TODO: multiply next_mat by mat and store the result in mat
         #    (reminder: @ is matrix multiplication)
         mat = next_mat@mat
-
 # YOUR CODE HERE
     return mat
 
@@ -177,6 +178,8 @@ def get_dx_dy_from_matrix(mat):
 # YOUR CODE HERE
 
 
+
+# +
 # Doing this one in two pieces - first, get out how the axes (1,0) and (0,1) are transformed, then in the mext
 #  method get theta out of how (1,0) is transformed
 def get_axes_from_matrix(mat):
@@ -196,6 +199,7 @@ def get_axes_from_matrix(mat):
 # YOUR CODE HERE
 
 
+# +
 def get_theta_from_matrix(mat):
     """ Get the actual rotation angle from how the x-axis transforms
     @param mat - the matrix
@@ -210,6 +214,8 @@ def get_theta_from_matrix(mat):
     return np.arctan2(x_axis[1],x_axis[0])
 # YOUR CODE HERE
 
+
+# -
 
 # -------------------------------- Check and test routines ------------------------------
 def check_is_rotation(mat, b_print=False):
@@ -226,6 +232,11 @@ def check_is_rotation(mat, b_print=False):
     # TODO: Return TRUE if the matrix is orthonormal/rotation matrix
     #       Return FALSE otherwise
     #       If b_print_test is True, also print out why the rotation matrix failed
+    if np.allclose(np.matmul(mat, mat.T), np.identity(3)):
+        return True
+    if (b_print):
+        print("rotation matrix inverse isn't transpose")
+    return False
 # YOUR CODE HERE
     if np.allclose(np.matmul(mat, mat.T), np.identity(3)):
         return True
@@ -256,6 +267,7 @@ def check_is_mirrored(mat):
     return True
     #  Note: Only the DIRECTION matters - not how long the vector is
 # YOUR CODE HERE
+
 
 
 # Check if skewed/not angle-preserving
@@ -333,11 +345,13 @@ def test_rotation_matrix():
             raise ValueError("Rotation matrix inverse not transpose {theta}, {mat}")
 
         if not check_is_rotation(mat):
+            print(mat@mat.T)
             raise ValueError("Rotation matrix not orthonormal {theta}, {mat}")
 
         theta_back = get_theta_from_matrix(mat)
         if not np.isclose(theta, theta_back):
             raise ValueError(f"Matrix not built correctly {mat}, {theta}, {theta_back}")
+test_rotation_matrix()
 
 
 def test_matrices():
@@ -411,6 +425,7 @@ def make_pts_representing_circle(n_pts=25):
     return pts
 
 
+
 def plot_axes_and_box(axs, mat):
     """Plot the original coordinate system (0,0 and x,y axes) and transformed coordinate system
     @param axs - figure axes
@@ -446,7 +461,6 @@ def plot_axes_and_circle(axs, mat):
 
     # Make a circle
     pts = make_pts_representing_circle(25)
-
     # Draw circle
     axs.plot(pts[0, :], pts[1, :], ':g')
 
@@ -489,7 +503,6 @@ def example_order_matters():
 
     seq_rot_trans = [{"type":"rotate", "theta": np.pi/4.0},
                      {"type":"translate", "dx": 1, "dy": 2}]
-
     mat = make_matrix_from_sequence(seq_rot_trans)
     axs[0, 0].set_title("Rot trans")
     plot_axes_and_circle(axs[0, 0], mat)
@@ -574,7 +587,6 @@ def example_uncentered_geometry():
     pts_zigzag_x_up = make_matrix_from_sequence([{"type":"rotate", "theta": np.pi / 2.0}])@pts_zigzag
     pts_zigzag_x_up_lower_left_origin = make_matrix_from_sequence([{"type":"rotate", "theta": np.pi / 2.0},{"type":"translate", "dx": 1.0, "dy": 1.0}])@pts_zigzag
 
-
     seq_scl_rot_trans = [{"type":"scale", "sx":0.5, "sy":0.75},
                          {"type":"rotate", "theta": np.pi/3.0},
                          {"type":"translate", "dx": -1, "dy": 2.0}]
@@ -621,4 +633,7 @@ if __name__ == '__main__':
     example_uncentered_geometry()
 
     print("Done")
+
+
+
 

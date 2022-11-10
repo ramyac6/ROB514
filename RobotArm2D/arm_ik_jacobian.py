@@ -152,6 +152,7 @@ def calculate_jacobian(arm, angles):
         #     Get r from mat_r (the last column)
         #       Do omega_hat cross r
         #    Put the result in the n-i column in jacob - i.e., wrist should go in the last column in jacob
+        print("")
 # YOUR CODE HERE
     return jacob
 

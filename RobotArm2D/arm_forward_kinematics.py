@@ -107,6 +107,9 @@ def set_transform_finger(obj_wedge, palm_width, finger_size, b_is_top):
 
     # TODO: append transformations to obj_wedge["Matrix seq"] to get it in the right position/size/orientation
     #  b_is_top means it's the top finger...
+    obj_wedge["Matrix seq"].append(mt.make_scale_dict(1.0,1.0))
+    obj_wedge["Matrix seq"].append(mt.make_rotation_dict(0.0))
+    obj_wedge["Matrix seq"].append(mt.make_translation_dict(0.0,0.0))
 # YOUR CODE HERE
     obj_wedge["Matrix seq"].append(mt.make_scale_dict(finger_size[0]/2.0,finger_size[1]/2.0))
     if b_is_top:
