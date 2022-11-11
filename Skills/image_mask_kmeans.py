@@ -13,6 +13,7 @@ from skimage.color import rgb2hsv
 import matplotlib.pyplot as plt
 
 
+# +
 def read_and_cluster_image(image_name, use_hsv, n_clusters):
     """ Read in the image, cluster the pixels by color (either rgb or hsv), then
     draw the clusters as an image mask, colored by both a random color and the center
@@ -43,37 +44,76 @@ def read_and_cluster_image(image_name, use_hsv, n_clusters):
     # This sets the title
     axs[0].set_title(str_im_name)
 
+    # An array of some default color values to use for making the rgb mask image
+    rgb_color = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0], [0, 255, 255], [255, 0, 255]]
+    
     # TODO
     # Step 1: If use_hsv is true, convert the image to hsv (see skimage rgb2hsv - skimage has a ton of these
     #  conversion routines)
+    im_shaped = np.copy(im_orig)
+    if use_hsv:
+        im_shaped = rgb2hsv(im_shaped)
+        
     # Step 2: reshape the data to be an nx3 matrix
     #   kmeans assumes each row is a data point. So you have to give it a (widthXheight) X 3 matrix, not the image
     #   data as-is (WXHX3). See numpy reshape.
+    im_shaped = im_shaped.reshape(im_shaped.shape[0]*im_shaped.shape[1],3)
+
     # Step 3: Whiten the data
+    im_shaped = whiten(im_shaped)
+    
     # Step 4: Call kmeans with the whitened data to get out the centers
     #   Note: kmeans returns a tuple with the centers in the first part and the overall fit in the second
+    kmeans_res = kmeans(im_shaped, n_clusters)
+    
     # Step 5: Get the ids out using vq
     #   This also returns a tuple; the ids for each pixel are in the first part
     #   You might find the syntax data[ids == i, 0:3] = rgb_color[i] useful - this gets all the data elements
     #     with ids with value i and sets them to the color in rgb_color
+    vq_res = vq(im_shaped, kmeans_res[0])
+
     # Step 5: Create a mask image, and set the colors by rgb_color[ id for pixel ]
+    rgb_mask = np.copy(im_shaped)    
+    for i in range(n_clusters): 
+        rgb_mask[vq_res[0] == i, 0:3] = rgb_color[i]
+    #rgb_mask[vq_res[0] == 0, 0:3] = rgb_color[0]
+    #rgb_mask[vq_res[0] == 1, 0:3] = rgb_color[1]
+    #rgb_mask[vq_res[0] == 2, 0:3] = rgb_color[2]
+    #rgb_mask[vq_res[0] == 3, 0:3] = rgb_color[3]
+
+    rgb_mask = rgb_mask.reshape(im_orig.shape[0],im_orig.shape[1],3)
+    
     # Step 6: Create a second mask image, setting the color to be the average color of the cluster
     #    Two ways to do this
     #       1) "undo" the whitening step on the returned cluster (harder)
     #       2) Calculate the means of the clusters in the original data
     #           np.mean(data[ids == c])
     #
+    mean_mask = np.copy(im_orig)
+    mean_mask = mean_mask.reshape(mean_mask.shape[0]*mean_mask.shape[1],3)
+
+    for i in range(n_clusters):
+        mean_mask[vq_res[0] == i, 0:3] = np.mean(mean_mask[vq_res[0]==i], axis=0)
+    
+    mean_mask = mean_mask.reshape(im_orig.shape[0],im_orig.shape[1],3)
+
     # Step 7: use rgb2hsv to handle the hsv option
     #   Simplest way to do this: Copy the code you did before and re-do after converting to hsv first
     #     Don't forget to take the color centers in the *original* image, not the hsv one
     #     Don't forget to rename your variables
     #   More complicated: Make a function. Most of the code is the same, except for a conversion to hsv at the beginning
+    # This is how you draw an image in a matplotlib figure
+    axs[1].imshow(rgb_mask)
+    axs[2].imshow(mean_mask)
 
-    # An array of some default color values to use for making the rgb mask image
-    rgb_color = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0], [0, 255, 255], [255, 0, 255]]
+    # This sets the title
+
 # YOUR CODE HERE
     axs[1].set_title("ID colored by rgb")
     axs[2].set_title("ID colored by cluster average")
+
+
+# -
 
 if __name__ == '__main__':
     read_and_cluster_image("real_apple.jpg", True, 4)
@@ -82,3 +122,5 @@ if __name__ == '__main__':
     read_and_cluster_image("staged_apple.png", True, 3)
     read_and_cluster_image("staged_apple.png", False, 3)
     print("done")
+
+
