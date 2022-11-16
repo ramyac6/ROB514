@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 # --------------------------- Inverse Kinematics ------------------
 # The goal of this part of the assignment is to move the grasp point to a target position, using the Jacobian.
-##
+# #
 # Note: The point of this assignment is to get an understanding of how these techniques work. After this, you should
 #  never (well, almost never) write your own gradient descent/Jacobian/IK solver
 # Slides: https://docs.google.com/presentation/d/11gInwdUCRLz5pAwkYoHR4nzn5McAqfdktITMUe32-pM/edit?usp=sharing
@@ -19,6 +19,7 @@ import arm_ik_gradient as ik_gradient
 
 # ----------------------------- Practice with calculating Jacobian for one link -------------------------------------------
 
+# +
 def practice_jacobian():
     """ An example problem of an arm with radius 3 currently at angle theta = 0.2
     This is just to check that you can calculate the Jacobian for one link before doing the matrix version
@@ -30,6 +31,7 @@ def practice_jacobian():
 
     # TODO: Create a 3D vector to the end point (r cos(theta), r sin(theta), 0)
     #   Needs to be 3D for cross product to work
+    pt_end_3d = np.array([pt_end[0],pt_end[1],0.0])
 # YOUR CODE HERE
 
     # The z vector we spin around
@@ -38,6 +40,7 @@ def practice_jacobian():
     # TODO: Take the cross product of omega_hat and r
     #  The result should always be 0 in 3rd component for a 2D vector
     #  Order matters for cross products...
+    cross = np.cross(omega_hat, pt_end_3d)
 # YOUR CODE HERE
 
 
@@ -46,6 +49,9 @@ def practice_jacobian():
     #   ... and is just the first two components of omega hat cross r
     # TODO: Set the column of the matrix to be omega hat cross r
     jacobian_matrix = np.zeros([2, 1])
+    jacobian_matrix[0][0] = cross [0]
+    jacobian_matrix[1][0] = cross [1]
+
 # YOUR CODE HERE
 
     # Now we'll set up a linear equation solve that looks like
@@ -59,11 +65,15 @@ def practice_jacobian():
     b_matrix = np.zeros([2, 1])
 # YOUR CODE HERE
     pt_new_end = [pt_end[0] - 0.01, pt_end[1] - 0.1]
+    b_matrix[0][0] = -0.01
+    b_matrix[1][0] = -0.1
+    
 
     # TODO: Solve the matrix using np.linalg.lstsq. Should return a 1x1 matrix with an angle change
     #   Note: Use rcond=None
     d_ang = np.zeros([1, 1])
 # YOUR CODE HERE
+    d_ang[0][0] = np.linalg.lstsq(jacobian_matrix, b_matrix, rcond=None)[0]
 
     # Check result of solve - should be the same as dx_dy
     res = jacobian_matrix @ d_ang[0]
@@ -77,6 +87,8 @@ def practice_jacobian():
 
     return d_ang
 
+
+# -
 
 # ----------------------------- Jacobian -------------------------------------------
 #  Break the IK solve into two pieces, calculating the Jacobian matrix and then
@@ -97,14 +109,37 @@ def calculate_jacobian_numerically(arm, angles):
 
     # TODO
     # Step 1: First, calculate gripper loc() (the current gripper location)
+    afk.set_angles_of_arm_geometry(arm, angles)
+    location = afk.get_gripper_location(arm)
     # Step 2: For each link angle (do the gripper last)
-    #   Add h to the angle
-    #   Calculate the new location with the new angles
-    #   Subtract h from the angle
-    #   Calculate (f(x+h) - f(x)) / h for the x and y location, and put it in the ith column
-    # Step 3: Do the wrist/gripper angle the same way (but remember, that angle
-    #   is stored in angles[-1][0])
-# YOUR CODE HERE
+    for i in range(len(angles)):
+        # Step 3: Do the wrist/gripper angle the same way (but remember, that angle
+        #   is stored in angles[-1][0])
+        if i == len(angles) - 1:
+            #   Add h to the angle
+            angles[-1][0] = angles[-1][0] + h
+            #   Calculate the new distance with the new angles
+            afk.set_angles_of_arm_geometry(arm, angles)
+            new_location = afk.get_gripper_location(arm)
+            #   Subtract h from the angle
+            angles[-1][0] = angles[-1][0] - h
+            #   Calculate (f(x+h) - f(x)) / h and append that to the derivs list
+            jacob[0][i] = ((new_location[0] - location[0]) / h)
+            jacob[1][i] = ((new_location[1] - location[1]) / h)
+
+        else:
+            #   Add h to the angle
+            angles[i] = angles[i] + h
+            #   Calculate the new location with the new angles
+            afk.set_angles_of_arm_geometry(arm, angles)
+            new_location = afk.get_gripper_location(arm)
+            #   Subtract h from the angle
+            angles[i] = angles[i] - h
+            #   Calculate (f(x+h) - f(x)) / h for the x and y location, and put it in the ith column
+            jacob[0][i] = ((new_location[0] - location[0]) / h)
+            jacob[1][i] = ((new_location[1] - location[1]) / h)
+    # Derivatives - append each derivative to this list
+    # YOUR CODE HERE
     return jacob
 
 def calculate_jacobian(arm, angles):
@@ -126,9 +161,15 @@ def calculate_jacobian(arm, angles):
     #  Don't forget the wrist
     lengths_links = [link["Arm length"] for link in arm[1:-1]]
     lengths_links.append(arm[-1][0]["Grasp"])
-
     # TODO: reverse the length list, make the reversed angles list from angles
-# YOUR CODE HERE
+    angles_links = np.zeros(len(angles))
+    lengths_links = np.flip(lengths_links)
+    for i in range(len(angles)):
+        if i == 0:
+            angles_links[i] = angles[-1][0]
+        else:
+            angles_links[i] = angles[len(angles)-i-1]
+    # YOUR CODE HERE
 
     # We rotated the base so the arm points up - so the last link angle needs to have that rotation added
     angles_links[-1] += np.pi / 2.0
@@ -152,8 +193,20 @@ def calculate_jacobian(arm, angles):
         #     Get r from mat_r (the last column)
         #       Do omega_hat cross r
         #    Put the result in the n-i column in jacob - i.e., wrist should go in the last column in jacob
-        print("")
-# YOUR CODE HERE
+        total_angles = total_angles - ang
+
+        mat_accum = mt.make_rotation_matrix(ang) @ mt.make_translation_matrix(length, 0) @ mat_accum
+        mat_r = mt.make_rotation_matrix(total_angles) @ mat_accum
+
+        r = mat_r[:,2]
+        r[2]=0
+
+        cross = np.cross(omega_hat,r)
+        jacob[0][len(angles_links)-1-i] = cross[0]
+        jacob[1][len(angles_links)-1-i] = cross[1]
+
+       
+    # YOUR CODE HERE
     return jacob
 
 
@@ -165,6 +218,8 @@ def solve_jacobian(jacobian, vx_vy):
 
     # TODO: Call numpy's linear algebra least squares (linalg.lstsq) routine to calculate A x = b
     # Reminder: lstsq returns a tuple. See docs. The returned matrix is in the first part of the tuple
+    tup = np.linalg.lstsq(jacobian, vx_vy, rcond=None)
+    delta_angles = tup[0]
 # YOUR CODE HERE
     return delta_angles
 
@@ -216,9 +271,8 @@ def jacobian_follow_path(arm, angles, target, b_one_step=True):
         #  Do in two parts - calculate the jacobian (calculate_jacobian)
         #   then solve it (solve_jacobian) with the vector (ik_gradient.vector_to_goal)
         #  You can use calculate_jacobian OR calculate_jacobian_numerically
-
-        delta_angles = np.zeros(len(angles))
-# YOUR CODE HERE
+        delta_angles = solve_jacobian(calculate_jacobian(arm, angles), vec_to_target)
+    # YOUR CODE HERE
 
         # This rarely happens - but if the matrix is degenerate (the arm is in a straight line) then the angles
         #  returned from solve_jacobian will be really, really big. The while loop below will "fix" this, but this
@@ -246,7 +300,18 @@ def jacobian_follow_path(arm, angles, target, b_one_step=True):
             #      new_angle = angle + step_size * delta_angles
             #  Calculate what the new distance would be with those angles
             new_angles = []
-# YOUR CODE HERE
+            for i in range(len(angles)):
+                if i == len(angles) - 1:
+                    angle_set = []
+                    angle_set.append((angles[-1][0] + step_size * delta_angles[i])[0])
+                    angle_set.append(0)
+                    angle_set.append(0)
+                    #angle_set.append((angles[-1][0] + step_size * delta_angles[i])[0])
+                    #angle_set.append((angles[-1][0] + step_size * delta_angles[i])[0])
+                    new_angles.append(angle_set)
+                else:
+                    new_angles.append((angles[i] + step_size * delta_angles[i])[0])
+    # YOUR CODE HERE
             # Get the new distance with the new angles
             afk.set_angles_of_arm_geometry(arm, new_angles)
             new_dist = ik_gradient.distance_to_goal(arm, target)
@@ -255,8 +320,16 @@ def jacobian_follow_path(arm, angles, target, b_one_step=True):
             #   If the new distance is larger than the best distance, decrease the step size (I suggest cutting it in half)
             #   Otherwise, set b_took_one_step to True (this will break out of the loop) and
             #     set angles to be new_angles and best_distance to be new_distance
-            #     set b_found_better to be True
-# YOUR CODE HERE
+            #     set b_found_better to be
+            if new_dist > best_distance:
+                step_size = step_size * 0.5
+            else:
+                b_took_one_step = True
+                best_distance = new_dist
+                angles = new_angles
+                b_found_better = True
+            # YOUR CODE HERE
+
             # Count iterations
             count_iterations += 1
 
@@ -304,20 +377,20 @@ if __name__ == '__main__':
     # ------------------ Syntax and return value checks ----------------------
 
     # First check - calculating the jacobian (2 x 4 matrix) calculated numerically
-    jacob = calculate_jacobian_numerically(arm_geometry, angles_check)
+    jacob_numerical = calculate_jacobian_numerically(arm_geometry, angles_check)
     exp_jacob = np.array([[-0.9098, -0.4098, -0.1977, -0.0562], [-0.3535, -0.3535, -0.1414, 0.0]])
-    if not np.all(np.isclose(jacob, exp_jacob, atol=0.01)):
-        print(f"Expected jacob\n{exp_jacob}, got\n{jacob}\n{np.isclose(jacob, exp_jacob, atol=0.01)}")
+    if not np.all(np.isclose(jacob_numerical, exp_jacob, atol=0.01)):
+        print(f"Expected jacob\n{exp_jacob}, got\n{jacob_numerical}\n{np.isclose(jacob_numerical, exp_jacob, atol=0.01)}")
     else:
         print("Passed numerical jacob test")
-
+    
     # Second check (optional) - calculating the jacobian using matrices (2 x 4 matrix)
     jacob = calculate_jacobian(arm_geometry, angles_check)
     if not np.all(np.isclose(jacob, exp_jacob, atol=0.01)):
         print(f"Expected jacob\n{exp_jacob}, got\n{jacob}\n{np.isclose(jacob, exp_jacob, atol=0.01)}")
     else:
         print("Passed matrix jacob test")
-
+    
     # Third check - pseudo inverse 1 x 5 matrix of angle changes needed to get the desired x,y change
     delta_angles = solve_jacobian(np.array(exp_jacob), np.array([0.5, -0.2]))
     exp_delta_angles = np.array([-1.456, 1.819,  0.506, -0.368])
@@ -325,6 +398,7 @@ if __name__ == '__main__':
         print(f"Expected delta angles\n{exp_delta_angles}, got\n{delta_angles}")
     else:
         print("Passed solve jacobian test")
+    
 
     # ----------------- Do one step check ----------------------------
     # Main check - do we get out the new angles? Note, this assumes that you haven't changed up the step size
@@ -367,5 +441,7 @@ if __name__ == '__main__':
     axs[1].set_title(f"After Jacobian descent count {count} dist {dist:0.2}")
 
     print("Done")
+
+
 
 

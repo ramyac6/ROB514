@@ -33,7 +33,10 @@ def vector_to_goal(arm_with_angles, target):
     """
     # TODO:
     #   Get the gripper/grasp location using get_gripper_location
+    # x,y as a tuple - the location of the "grasp" point in the gripper
+    x, y = afk.get_gripper_location(arm_with_angles)
     #   Calculate and return the vector
+    return np.array([[target[0] - x], [target[1] - y]])
 # YOUR CODE HERE
 
 
@@ -49,6 +52,8 @@ def distance_to_goal(arm_with_angles, target):
     """
 
     # TODO: Call the function above, then return the vector's length
+    x, y = afk.get_gripper_location(arm_with_angles)
+    return np.sqrt((target[0]-x)**2 + (target[1]-y)**2)
 # YOUR CODE HERE
 
 
@@ -70,16 +75,35 @@ def calculate_gradient(arm, angles, target):
     # TODO
     # Step 1: First, calculate f(x) (the current distance)
     #   Don't forget to set the angles of the arm (afk.set_angles_of_arm_geometry)
+    afk.set_angles_of_arm_geometry(arm, angles)
+    f_x = distance_to_goal(arm, target)
+
     # Step 2: For each link angle (do the gripper last)
-    #   Add h to the angle
-    #   Calculate the new distance with the new angles
-    #   Subtract h from the angle
-    #   Calculate (f(x+h) - f(x)) / h and append that to the derivs list
-    # Step 3: Do the wrist/gripper angle the same way (but remember, that angle
-    #   is stored in angles[-1][0])
+    for i in range(len(angles)):
+        # Step 3: Do the wrist/gripper angle the same way (but remember, that angle
+        #   is stored in angles[-1][0])
+        if i == len(angles) - 1:
+            #   Add h to the angle
+            angles[-1][0] = angles[-1][0] + h
+            #   Calculate the new distance with the new angles
+            afk.set_angles_of_arm_geometry(arm, angles)
+            f_x_h = distance_to_goal(arm, target)
+            #   Subtract h from the angle
+            angles[-1][0] = angles[-1][0] - h
+            #   Calculate (f(x+h) - f(x)) / h and append that to the derivs list
+            derivs.append((f_x_h - f_x) / h)
+        else:
+            #   Add h to the angle
+            angles[i] = angles[i] + h
+            #   Calculate the new distance with the new angles
+            afk.set_angles_of_arm_geometry(arm, angles)
+            f_x_h = distance_to_goal(arm, target)
+            #   Subtract h from the angle
+            angles[i] = angles[i] - h
+            #   Calculate (f(x+h) - f(x)) / h and append that to the derivs list
+            derivs.append((f_x_h - f_x)/h)
 # YOUR CODE HERE
     return derivs
-
 
 # ------------------------ Gradient descent -----------------
 # Calculate the gradient
@@ -119,7 +143,10 @@ def gradient_descent(arm, angles, target, b_one_step=True) -> tuple:
     while b_keep_going and count_iterations < 1000:
         # First, calculate the gradiant with the current angles
         # TODO: Calculate the gradient with angles (don't for get to set the angles first)
-# YOUR CODE HERE
+        afk.set_angles_of_arm_geometry(arm, angles)
+        derivs = calculate_gradient(arm, angles, target)
+
+        # YOUR CODE HERE
 
         # This is the while loop where you keep "shrinking" the step size until you get closer to the goal (if
         #  you ever do)
@@ -137,8 +164,19 @@ def gradient_descent(arm, angles, target, b_one_step=True) -> tuple:
             #    Remember that the last element of the list is a list with 3 elements in it - wrist and the two fingers
             #  Calculate what the new distance would be with those angles
             #  We go in the OPPOSITE direction of the gradient because we want to DECREASE distance
+            #new_angles = np.copy(angles)
             new_angles = []
-# YOUR CODE HERE
+            for i in range(len(angles)):
+                if i == len(angles) - 1:
+                    angle_set = []
+                    angle_set.append(angles[-1][0] - step_size * derivs[i])
+                    angle_set.append(0)
+                    angle_set.append(0)
+                    #angle_set.append(angles[-1][0] - step_size * derivs[i])
+                    #angle_set.append(angles[-1][0] - step_size * derivs[i])
+                    new_angles.append(angle_set)
+                else:
+                    new_angles.append(angles[i] - step_size * derivs[i])
 
             # Now we see how we did
             afk.set_angles_of_arm_geometry(arm, new_angles)
@@ -149,6 +187,13 @@ def gradient_descent(arm, angles, target, b_one_step=True) -> tuple:
             #   Otherwise, set b_took_one_step to True (this will break out of the loop) and
             #     set angles to be new_angles and best_distance to be new_distance
             #     set b_found_better to be True
+            if new_dist > best_distance:
+                step_size = step_size * 0.5
+            else:
+                b_took_one_step = True
+                angles = new_angles
+                best_distance = new_dist
+                b_found_better = True
 # YOUR CODE HERE
             # Count iterations
             count_iterations += 1
@@ -164,6 +209,8 @@ def gradient_descent(arm, angles, target, b_one_step=True) -> tuple:
 
     # Return the new angles, and whether or not we ever found a better set of angles
     return b_found_better, angles, count_iterations
+
+
 
 
 if __name__ == '__main__':
@@ -283,3 +330,5 @@ if __name__ == '__main__':
     axs[1].set_title(f"After gradient descent count {count} dist {dist:0.3}")
 
     print("Done")
+
+

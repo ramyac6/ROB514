@@ -111,7 +111,6 @@ def make_translation_dict(dx, dy):
     return {"type": "translate", "dx": dx, "dy": dy}
 
 
-# +
 def make_matrix_from_sequence(seq):
     """ Turn an array of dictionaries with matrix type and params into a single 3x3 matrix
     Assumption: The first item in the list is the first transformation to apply to the object
@@ -138,8 +137,6 @@ def make_matrix_from_sequence(seq):
 # YOUR CODE HERE
     return mat
 
-
-# -
 
 # -------------------------------------------- Going backwards -----------
 # These are check/debugging functions that are handy to have around. In essence, they convert from a matrix back
@@ -179,7 +176,6 @@ def get_dx_dy_from_matrix(mat):
 
 
 
-# +
 # Doing this one in two pieces - first, get out how the axes (1,0) and (0,1) are transformed, then in the mext
 #  method get theta out of how (1,0) is transformed
 def get_axes_from_matrix(mat):
@@ -199,7 +195,6 @@ def get_axes_from_matrix(mat):
 # YOUR CODE HERE
 
 
-# +
 def get_theta_from_matrix(mat):
     """ Get the actual rotation angle from how the x-axis transforms
     @param mat - the matrix
@@ -214,8 +209,6 @@ def get_theta_from_matrix(mat):
     return np.arctan2(x_axis[1],x_axis[0])
 # YOUR CODE HERE
 
-
-# -
 
 # -------------------------------- Check and test routines ------------------------------
 def check_is_rotation(mat, b_print=False):
