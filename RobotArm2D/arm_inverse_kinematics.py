@@ -35,7 +35,10 @@ def vector_to_goal(angles, arm, target):
     #   Call set_angles_of_arm_geometry to set the angles
     #   Get the gripper/grasp location using get_gripper_location
     #   Calculate and return the vector
-# YOUR CODE HERE
+    afk.set_angles_of_arm_geometry(arm, angles)
+    x, y = afk.get_gripper_location(arm)
+    #   Calculate and return the vector
+    return np.array([[target[0] - x], [target[1] - y]])# YOUR CODE HERE
 
 
 def distance_to_goal(angles, arm, target):
@@ -48,7 +51,9 @@ def distance_to_goal(angles, arm, target):
     @param target - a 2x1 numpy array (x,y) that is the desired target point
     @return: The distance
     """
-
+    afk.set_angles_of_arm_geometry(arm,angles)
+    x, y = afk.get_gripper_location(arm)
+    return np.sqrt((target[0]-x)**2 + (target[1]-y)**2)
     # TODO: Call the function above, then return the vector's length
 # YOUR CODE HERE
 
@@ -70,13 +75,34 @@ def calculate_gradient(angles, arm, target):
 
     # TODO
     # Step 1: First, calculate f(x) (the current distance)
+    #   Don't forget to set the angles of the arm (afk.set_angles_of_arm_geometry)
+    afk.set_angles_of_arm_geometry(arm, angles)
+    f_x = distance_to_goal(arm, target)
+
     # Step 2: For each link angle (do the gripper last)
-    #   Add h to the angle
-    #   Calculate the new distance with the new angles
-    #   Subtract h from the angle
-    #   Calculate (f(x+h) - f(x)) / h and append that to the derivs list
-    # Step 3: Do the wrist/gripper angle the same way (but remember, that angle
-    #   is stored in angles[-1][0])
+    for i in range(len(angles)):
+        # Step 3: Do the wrist/gripper angle the same way (but remember, that angle
+        #   is stored in angles[-1][0])
+        if i == len(angles) - 1:
+            #   Add h to the angle
+            angles[-1][0] = angles[-1][0] + h
+            #   Calculate the new distance with the new angles
+            afk.set_angles_of_arm_geometry(arm, angles)
+            f_x_h = distance_to_goal(arm, target)
+            #   Subtract h from the angle
+            angles[-1][0] = angles[-1][0] - h
+            #   Calculate (f(x+h) - f(x)) / h and append that to the derivs list
+            derivs.append((f_x_h - f_x) / h)
+        else:
+            #   Add h to the angle
+            angles[i] = angles[i] + h
+            #   Calculate the new distance with the new angles
+            afk.set_angles_of_arm_geometry(arm, angles)
+            f_x_h = distance_to_goal(arm, target)
+            #   Subtract h from the angle
+            angles[i] = angles[i] - h
+            #   Calculate (f(x+h) - f(x)) / h and append that to the derivs list
+            derivs.append((f_x_h - f_x) / h)
 # YOUR CODE HERE
     return derivs
 
@@ -102,7 +128,8 @@ def gradient_descent(angles, arm, target, b_one_step=True):
     while step_size > 0.05:
         # TODO: Calculate the gradient
 # YOUR CODE HERE
-
+        afk.set_angles_of_arm_geometry(arm, angles)
+        derivs = calculate_gradient(arm, angles, target)
         # TODO:
         #  Try taking a step along the gradient
         #    For each angle
@@ -111,12 +138,32 @@ def gradient_descent(angles, arm, target, b_one_step=True):
         #  We go in the OPPOSITE direction of the gradient because we want to DECREASE distance
         new_angles = []
 # YOUR CODE HERE
+        for i in range(len(angles)):
+            if i == len(angles) - 1:
+                angle_set = []
+                angle_set.append(angles[-1][0] - step_size * derivs[i])
+                angle_set.append(0)
+                angle_set.append(0)
+                # angle_set.append(angles[-1][0] - step_size * derivs[i])
+                # angle_set.append(angles[-1][0] - step_size * derivs[i])
+                new_angles.append(angle_set)
+            else:
+                new_angles.append(angles[i] - step_size * derivs[i])
+
         new_dist = distance_to_goal(new_angles, arm, target)
 
         # TODO:
         #   If the new distance is larger than the best distance, decrease the step size
         #   Otherwise, if b_one_stop is True, return the new angles
         #          if b_one_step is False, set angles to be new_angles and best_distance to be new_distance
+        if new_dist > best_distance:
+            step_size = step_size * 0.5
+        else:
+            if b_one_step:
+                return new_angles
+            else:
+                angles = new_angles
+                best_distance = new_dist
 # YOUR CODE HERE
 
     # We never got better - return the original angles
@@ -133,6 +180,8 @@ def practice_jacobian():
 
     # TODO: Create a 3D vector to the end point (r cos(theta), r sin(theta), 0)
     #   Needs to be 3D for cross product to work
+    pt_end = [radius * np.cos(theta), radius * np.sin(theta), 0]
+
 # YOUR CODE HERE
 
     # The z vector we spin around
@@ -141,12 +190,16 @@ def practice_jacobian():
     # TODO: Take the cross product of omega_hat and r
     #  This should always be 0 in 3rd component for a 2D vector
 # YOUR CODE HERE
+    cross = np.cross(omega_hat, pt_end)
+
 
     # TODO: Build the Jacobian, which in this case is a 2x1 matrix
     # This matrix takes changes in the angles to changes in x,y
     #   ... and is just the first two components of omega hat cross r
     # TODO: Set the column of the matrix to be omega hat cross r
     jacobian_matrix = np.zeros([2, 1])
+    jacobian_matrix[0][0] = cross [0]
+    jacobian_matrix[1][0] = cross [1]
 # YOUR CODE HERE
 
     # Now we'll set up a linear equation solve that looks like
@@ -159,11 +212,15 @@ def practice_jacobian():
     # Desired x,y change
     b_matrix = np.zeros([2, 1])
 # YOUR CODE HERE
+    pt_new_end = [pt_end[0] - 0.01, pt_end[1] - 0.1]
+    b_matrix[0][0] = -0.01
+    b_matrix[1][0] = -0.1
 
     # TODO: Solve the matrix using np.linalg.lstsq. Should return a 1x1 matrix with an angle change
     #   Note: Use rcond=None
     d_ang = np.zeros([1, 1])
 # YOUR CODE HERE
+    d_ang[0][0] = np.linalg.lstsq(jacobian_matrix, b_matrix, rcond=None)[0]
 
     # Check result of solve - should be the same as dx_dy
     res = jacobian_matrix @ d_ang
@@ -194,7 +251,12 @@ def calculate_jacobian(arm_with_angles):
     angles_links = [link["Angle"] for link in arm_with_angles[0:-1]]
     lengths_links = [link["Length"] for link in arm_with_angles[0:-1]]
     angles_reverse_order = []
-    lengths_reverse_order = []
+    for i in range(len(angles_links)):
+        if i == 0:
+            angles_reverse_order[i] = angles_links[-1][0]
+        else:
+            angles_reverse_order[i] = angles_links[len(angles_links)-i-1]
+    lengths_reverse_order = np.flip(lengths_links)
 # YOUR CODE HERE
 
     # TODO: Now work backwards, calculating R @ T @ mat_accum
@@ -211,10 +273,32 @@ def calculate_jacobian(arm_with_angles):
         #       Get r from mat_accum
         #       Do omega_hat cross r
         #       Put the result in the n-i column in jacob - i.e., wrist should go in the last column in jacob
+        total_angles = total_angles - ang
+
+        mat_accum = mt.make_rotation_matrix(ang) @ mt.make_translation_matrix(length, 0) @ mat_accum
+        mat_r = mt.make_rotation_matrix(total_angles) @ mat_accum
+
+        r = mat_r[:,2]
+        r[2]=0
+
+        cross = np.cross(omega_hat,r)
+        jacob[0][len(angles_links)-1-i] = cross[0]
+        jacob[1][len(angles_links)-1-i] = cross[1]
 # YOUR CODE HERE
     return jacobian
 
 def solve_jacobian(jacobian, vx_vy):
+    """ Do the pseudo inverse of the jacobian
+    @param - jacobian - the 2xn jacobian you calculated from the current joint angles/lengths
+    @param - vx_vy - a 2x1 numpy array with the distance to the target point (vector_to_goal)
+    @return - changes to the n joint angles, as a 1xn numpy array"""
+
+    # TODO: Call numpy's linear algebra least squares (linalg.lstsq) routine to calculate A x = b
+    # Reminder: lstsq returns a tuple. See docs. The returned matrix is in the first part of the tuple
+    tup = np.linalg.lstsq(jacobian, vx_vy, rcond=None)
+    delta_angles = tup[0]
+    # YOUR CODE HERE
+    return delta_angles
 
 def jacobian(angles, arm, target, b_one_step=True):
     """
@@ -226,77 +310,75 @@ def jacobian(angles, arm, target, b_one_step=True):
     @ return angles that put the grasp point as close as possible to the target
     """
 
-    """
+    # begin homework 2 : Problem 2
+    mats = self.robot_arm.get_matrices()
+    jacob = np.zeros([2, 3])
 
-        # begin homework 2 : Problem 2
-        mats = self.robot_arm.get_matrices()
-        jacob = np.zeros([2, 3])
+    matrix_order = ['wrist', 'forearm', 'upperarm']
+    mat_accum = np.identity(3)
+    for i, c in enumerate(matrix_order):
+        mat_accum = mats[c + '_R'] @ mats[c + '_T'] @ mat_accum
+        r = [mat_accum[0, 2], mat_accum[1, 2], 0]
+        omega_cross_r = np.cross(omega_hat, r)
+        jacob[0:2, 2-i] = np.transpose(omega_cross_r[0:2])
 
-        matrix_order = ['wrist', 'forearm', 'upperarm']
-        mat_accum = np.identity(3)
-        for i, c in enumerate(matrix_order):
-            mat_accum = mats[c + '_R'] @ mats[c + '_T'] @ mat_accum
-            r = [mat_accum[0, 2], mat_accum[1, 2], 0]
-            omega_cross_r = np.cross(omega_hat, r)
-            jacob[0:2, 2-i] = np.transpose(omega_cross_r[0:2])
+    # Desired change in x,y
+    pt_reach = self.robot_arm.arm_end_pt()
+    dx_dy[0, 0] = self.reach_x.value() - pt_reach[0]
+    dx_dy[1, 0] = self.reach_y.value() - pt_reach[1]
 
-        # Desired change in x,y
-        pt_reach = self.robot_arm.arm_end_pt()
-        dx_dy[0, 0] = self.reach_x.value() - pt_reach[0]
-        dx_dy[1, 0] = self.reach_y.value() - pt_reach[1]
+    # Use pseudo inverse to solve
+    d_ang = np.linalg.lstsq(jacob, dx_dy, rcond=None)[0]
+    res = jacob @ d_ang
 
-        # Use pseudo inverse to solve
-        d_ang = np.linalg.lstsq(jacob, dx_dy, rcond=None)[0]
-        res = jacob @ d_ang
-
-        d_ang_save = [self.theta_slds[i].value() for i in range(0, 3)]
-        d_min = 0
-        v_min = pow(dx_dy[0, 0], 2) + pow(dx_dy[1, 0], 2)
-        d_max = min(1, pi / max(d_ang))
-        for i, ang in enumerate(d_ang):
-            self.theta_slds[i].set_value(self.theta_slds[i].value() + ang)
-        pt_reach_move = self.robot_arm.arm_end_pt()
-        v_max = pow(pt_reach_move[0] - self.reach_x.value(), 2) + pow(pt_reach_move[1] - self.reach_y.value(), 2)
-        d_try = d_min
-        v_try = v_min
-        if v_max < v_min:
-            d_try = d_max
-            v_try = v_max
-        while d_max - d_min > 0.00001 and v_try > 0.01:
-            d_try = 0.5 * (d_max + d_min)
-            for i, ang in enumerate(d_ang):
-                self.theta_slds[i].set_value(d_ang_save[i] + ang * d_try)
-            pt_reach_try = self.robot_arm.arm_end_pt()
-            v_try = pow(pt_reach_try[0] - self.reach_x.value(), 2) + pow(pt_reach_try[1] - self.reach_y.value(), 2)
-
-            if v_try < v_min:
-                v_min = v_try
-                d_min = d_try
-            elif v_try < v_max:
-                v_max = v_try
-                d_max = d_try
-            elif v_max > v_min:
-                v_max = v_try
-                d_max = d_try
-            else:
-                v_min = v_try
-                d_min = d_try
-
-        if v_min < v_try and v_min < v_max:
-            d_try = d_min
-
-        if v_max < v_try and v_max < v_min:
-            d_try = d_max
-
+    d_ang_save = [self.theta_slds[i].value() for i in range(0, 3)]
+    d_min = 0
+    v_min = pow(dx_dy[0, 0], 2) + pow(dx_dy[1, 0], 2)
+    d_max = min(1, pi / max(d_ang))
+    for i, ang in enumerate(d_ang):
+        self.theta_slds[i].set_value(self.theta_slds[i].value() + ang)
+    pt_reach_move = self.robot_arm.arm_end_pt()
+    v_max = pow(pt_reach_move[0] - self.reach_x.value(), 2) + pow(pt_reach_move[1] - self.reach_y.value(), 2)
+    d_try = d_min
+    v_try = v_min
+    if v_max < v_min:
+        d_try = d_max
+        v_try = v_max
+    while d_max - d_min > 0.00001 and v_try > 0.01:
+        d_try = 0.5 * (d_max + d_min)
         for i, ang in enumerate(d_ang):
             self.theta_slds[i].set_value(d_ang_save[i] + ang * d_try)
+        pt_reach_try = self.robot_arm.arm_end_pt()
+        v_try = pow(pt_reach_try[0] - self.reach_x.value(), 2) + pow(pt_reach_try[1] - self.reach_y.value(), 2)
 
-        pt_reach_res = self.robot_arm.arm_end_pt()
-        desired_text = "Desired dx dy {0:0.4f},{1:0.4f},".format(dx_dy[0, 0], dx_dy[1, 0])
-        got_text = " got {0:0.4f},{1:0.4f}".format(res[0, 0], res[1, 0])
-        actual_text = ", actual {0:0.4f},{1:0.4f}".format(pt_reach_res[0], pt_reach_res[1])
-        self.robot_arm.text = desired_text + got_text + actual_text
-        # to set text
-        # self.robot_arm.text = text
-        # end homework 2 problem 2
-        """
+        if v_try < v_min:
+            v_min = v_try
+            d_min = d_try
+        elif v_try < v_max:
+            v_max = v_try
+            d_max = d_try
+        elif v_max > v_min:
+            v_max = v_try
+            d_max = d_try
+        else:
+            v_min = v_try
+            d_min = d_try
+
+    if v_min < v_try and v_min < v_max:
+        d_try = d_min
+
+    if v_max < v_try and v_max < v_min:
+        d_try = d_max
+
+    for i, ang in enumerate(d_ang):
+        self.theta_slds[i].set_value(d_ang_save[i] + ang * d_try)
+
+    pt_reach_res = self.robot_arm.arm_end_pt()
+    desired_text = "Desired dx dy {0:0.4f},{1:0.4f},".format(dx_dy[0, 0], dx_dy[1, 0])
+    got_text = " got {0:0.4f},{1:0.4f}".format(res[0, 0], res[1, 0])
+    actual_text = ", actual {0:0.4f},{1:0.4f}".format(pt_reach_res[0], pt_reach_res[1])
+    self.robot_arm.text = desired_text + got_text + actual_text
+    # to set text
+    # self.robot_arm.text = text
+    # end homework 2 problem 2
+
