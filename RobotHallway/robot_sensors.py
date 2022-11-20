@@ -18,8 +18,10 @@ class RobotSensors:
         # Bayes filter:
         #  TODO: Create a dictionary that has two dictionaries in it (one for door, one for no door)
         #    The actual dictionaries will be set in set_door_sensor_probabilities
+        self.dictionary_container = {"door":{},"no_door":{}} # actual door exists or not
         # Kalman filter:
         #  TODO: Add another dictionary for the distance to the wall sensor noise
+        self.distance_wall_sensor_noise = {}
         # Note: The actual values in the dictionaries will be set in the calls to set_* below
         # Second note: all variables should be referenced with self. or they will disappear
 # YOUR CODE HERE
@@ -39,6 +41,10 @@ class RobotSensors:
         # TODO: Store the input values in TWO dictionaries (one for the door there, one for no door)
         #  Reminder: You should have created the dictionary to hold the dictionaries in the __init__ method above
         #  Second note: all variables should be referenced with self.
+        self.dictionary_container["door"] = {"see_door":in_prob_see_door_if_door,
+                                             "see_no_door": 1-in_prob_see_door_if_door}
+        self.dictionary_container["no_door"] = {"see_door":in_prob_see_door_if_not_door,
+                                                "see_no_door":1-in_prob_see_door_if_not_door}
 # YOUR CODE HERE
 
     def set_distance_wall_sensor_probabilities(self, sigma=0.1):
@@ -68,7 +74,13 @@ class RobotSensors:
         #  This is the place where you need a 4-way if statement
         #   First if statement: Is the robot in front of the door?
         # STEP 1 - generate a random number between 0 and 1
+        random_number = np.random.uniform()
         # STEP 2 - use the random number (and your first if statement) to determine if you should return True or False
+        if is_in_front_of_door:
+            return random_number < self.dictionary_container["door"]["see_door"]
+        else:
+            return random_number > self.dictionary_container["no_door"]["see_no_door"]
+
         # Note: This is just the sample_boolean code from your probabilities assignment
 # YOUR CODE HERE
 

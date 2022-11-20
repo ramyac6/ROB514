@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import random
 
 import numpy as np
 
@@ -61,7 +62,12 @@ class RobotGroundTruth:
         #   Set self.move_probabilities["move_left"] = {...} to be a dictionary with the above probabilities
         #     Yes, you can store dictionaries in dictionaries
         # Check that the probabilities sum to one and are between 0 and 1
-
+        if (move_left + move_right > 1):
+            print("move_left + move_right is greater than one")
+        do_not_move = 1 - (move_left + move_right)
+        self.move_probabilities["move_left"] = { "left": move_left,
+                                                 "none": do_not_move,
+                                                 "right": move_right}
 # YOUR CODE HERE
 
     def set_move_right_probabilities(self, move_left=0.05, move_right=0.8):
@@ -74,6 +80,12 @@ class RobotGroundTruth:
         #   Set self.move_probabilities["move_right"] = {...} to be a dictionary with the above probabilities
         #     Yes, you can store dictionaries in dictionaries
         # Check that the probabilities sum to one and are between 0 and 1
+        if (move_left + move_right > 1):
+            print("move_left + move_right is greater than one")
+        do_not_move = 1 - (move_left + move_right)
+        self.move_probabilities["move_right"] = { "left": move_left,
+                                                 "none": do_not_move,
+                                                 "right": move_right}
 
 # YOUR CODE HERE
 
@@ -86,6 +98,10 @@ class RobotGroundTruth:
         # TODO
         #   Set self.move_probabilities["move_continuous"] = {...} to be a dictionary with the above probabilities
         # Check that sigma is positive
+        if sigma <= 0:
+            print("sigma is not positive")
+        self.move_probabilities["move_continuous"] = {"sigma" : sigma}
+
 
 # YOUR CODE HERE
 
@@ -134,6 +150,15 @@ class RobotGroundTruth:
         # TODO
         #  Set step_dir to -1 (left), 0 (stay put) or 1 (right) based on sampling the move_left variable
         step_dir = 0
+        randomval = np.random.uniform()
+        for move, weight in self.move_probabilities["move_left"].items():
+            randomval = randomval - weight
+            if randomval <= 0:
+                if move == "left":
+                    step_dir = -1
+                elif move == "right":
+                    step_dir = 1
+                break
 
 # YOUR CODE HERE
 
@@ -149,7 +174,15 @@ class RobotGroundTruth:
         # Bayes assignment
         # Set step_dir to -1 (left), 0 (stay put) or 1 (right) based on sampling the move_right variable
         step_dir = 0
-
+        randomval = random.random()
+        for move, weight in self.move_probabilities["move_right"].items():
+            randomval = randomval - weight
+            if randomval <= 0:
+                if move == "left":
+                    step_dir = -1
+                elif move == "right":
+                    step_dir = 1
+                break
 # YOUR CODE HERE
 
         return self._move_clamped_discrete(step_dir * step_size)

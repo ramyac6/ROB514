@@ -27,6 +27,8 @@ class BayesFilter:
         @param n_bins - the number of bins to divide the unit interval (0,1) up into """
 
         # TODO create an array with n_bins, set to uniform distribution
+
+        self.probabilities = [1/n_bins] * n_bins
 # YOUR CODE HERE
 
     def update_belief_sensor_reading(self, world_ground_truth, robot_sensor, sensor_reading):
@@ -52,6 +54,22 @@ class BayesFilter:
         #     You'll need to know if the bin is in front of the door or not to compute this
         # You might find enumerate useful
         #  for i, p in enumerate(self.probabilities):
+        probs = []
+        for index, prob in enumerate(self.probabilities):
+            if WorldGroundTruth.is_location_in_front_of_door(world_ground_truth,(index/len(self.probabilities))): # is there actually a door?
+                if sensor_reading:
+                    probs.append(prob * robot_sensor.dictionary_container["door"]["see_door"])
+                else:
+                    probs.append(prob * robot_sensor.dictionary_container["door"]["see_no_door"])
+            else:
+                if not sensor_reading:
+                    probs.append(prob * robot_sensor.dictionary_container["no_door"]["see_no_door"])
+                else:
+                    probs.append(prob * robot_sensor.dictionary_container["no_door"]["see_door"])
+
+        for i in range(len(probs)):
+            self.probabilities[i] = probs[i]/len(probs)
+
 # YOUR CODE HERE
 
     def update_belief_move_left(self, robot_ground_truth):
@@ -69,6 +87,22 @@ class BayesFilter:
         # Don't forget to normalize - but if you've done this correctly then the sum should be very, very close to
         #  one already - any error is just numerical
 
+        probs = np.zeros(len(self.probabilities))
+        for i in range(len(probs)):
+            if i == 0:
+                probs[i] += robot_ground_truth.move_probabilities["move_left"]["left"] * self.probabilities[i]
+                probs[i] += robot_ground_truth.move_probabilities["move_left"]["none"] * self.probabilities[i]
+                probs[i + 1] += robot_ground_truth.move_probabilities["move_left"]["right"] * self.probabilities[i]
+            elif i == len(probs)-1:
+                probs[i - 1] += robot_ground_truth.move_probabilities["move_left"]["left"] * self.probabilities[i]
+                probs[i] += robot_ground_truth.move_probabilities["move_left"]["none"] * self.probabilities[i]
+                probs[i] += robot_ground_truth.move_probabilities["move_left"]["right"] * self.probabilities[i]
+            else:
+                probs[i-1] += robot_ground_truth.move_probabilities["move_left"]["left"] * self.probabilities[i]
+                probs[i] += robot_ground_truth.move_probabilities["move_left"]["none"] * self.probabilities[i]
+                probs[i+1] += robot_ground_truth.move_probabilities["move_left"]["right"] * self.probabilities[i]
+
+
 # YOUR CODE HERE
 
     def update_belief_move_right(self, robot_ground_truth):
@@ -77,7 +111,22 @@ class BayesFilter:
         @param robot_ground_truth - robot location, has the probabilities for actually moving left if move_left called"""
 
         # bayes assignment
-# YOUR CODE HERE
+        probs = np.zeros(len(self.probabilities))
+        for i in range(len(probs)):
+            if i == 0:
+                probs[i] += robot_ground_truth.move_probabilities["move_right"]["left"] * self.probabilities[i]
+                probs[i] += robot_ground_truth.move_probabilities["move_right"]["none"] * self.probabilities[i]
+                probs[i + 1] += robot_ground_truth.move_probabilities["move_right"]["right"] * self.probabilities[i]
+            elif i == len(probs) - 1:
+                probs[i - 1] += robot_ground_truth.move_probabilities["move_right"]["left"] * self.probabilities[i]
+                probs[i] += robot_ground_truth.move_probabilities["move_right"]["none"] * self.probabilities[i]
+                probs[i] += robot_ground_truth.move_probabilities["move_right"]["right"] * self.probabilities[i]
+            else:
+                probs[i - 1] += robot_ground_truth.move_probabilities["move_right"]["left"] * self.probabilities[i]
+                probs[i] += robot_ground_truth.move_probabilities["move_right"]["none"] * self.probabilities[i]
+                probs[i + 1] += robot_ground_truth.move_probabilities["move_right"]["right"] * self.probabilities[i]
+
+    # YOUR CODE HERE
 
     def one_full_update(self, world_ground_truth, robot_ground_truth, robot_sensor, u: str, z: bool):
         """This is the full update loop that takes in one action, followed by a sensor reading
@@ -94,6 +143,13 @@ class BayesFilter:
         # TODO:
         #  Step 1 predict: update your belief by the action (call one of move_left or move_right)
         #  Step 2 correct: do the correction step (update belief by the sensor reading)
+        if u == "move_left":
+            self.update_belief_move_left(self,robot_ground_truth)
+        elif u == "move_right":
+            self.update_belief_move_right(self,robot_ground_truth)
+        else:
+            print("something is wrong")
+        self.update_belief_sensor_reading(self,world_ground_truth,robot_sensor,z)
 # YOUR CODE HERE
 
 
