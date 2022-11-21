@@ -54,14 +54,15 @@ class BayesFilter:
         #     You'll need to know if the bin is in front of the door or not to compute this
         # You might find enumerate useful
         #  for i, p in enumerate(self.probabilities):
-        # p(x|y) probabilty that we are in front of a door given that the robot says we are in front of a door
+        # p(x|y) probability that we are in front of a door given that the robot says we are in front of a door
         # p(y|x) probability that the robot says we are in front of a door given that we are in front of a door
         # p(x) p(in front of door)
         # p(y) p(sensor reads door)
+        nu = 0
         probs = []
         for index, prob in enumerate(self.probabilities):
             # is there actually a door?
-            if WorldGroundTruth.is_location_in_front_of_door(world_ground_truth,(index/len(self.probabilities))):
+            if WorldGroundTruth.is_location_in_front_of_door(world_ground_truth, index / len(self.probabilities)):
                 if sensor_reading: # now what does the sensor say?
                     probs.append(prob * robot_sensor.door_probabilities["door"]["see_door"])
                 else:
@@ -71,9 +72,8 @@ class BayesFilter:
                     probs.append(prob * robot_sensor.door_probabilities["no_door"]["see_no_door"])
                 else:
                     probs.append(prob * robot_sensor.door_probabilities["no_door"]["see_door"])
-
         for i in range(len(probs)):
-            self.probabilities[i] = probs[i] / len(probs)
+            self.probabilities[i] = probs[i] / np.sum(probs)
 
 # YOUR CODE HERE
 
