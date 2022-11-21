@@ -18,7 +18,7 @@ class RobotSensors:
         # Bayes filter:
         #  TODO: Create a dictionary that has two dictionaries in it (one for door, one for no door)
         #    The actual dictionaries will be set in set_door_sensor_probabilities
-        self.dictionary_container = {"door":{},"no_door":{}} # actual door exists or not
+        self.door_probabilities = {"door":{},"no_door":{}} # actual door exists or not
         # Kalman filter:
         #  TODO: Add another dictionary for the distance to the wall sensor noise
         self.distance_wall_sensor_noise = {}
@@ -34,17 +34,17 @@ class RobotSensors:
 
     def set_door_sensor_probabilites(self, in_prob_see_door_if_door=0.8, in_prob_see_door_if_not_door=0.1):
         """ Set the two door probabilities.
-        @param in_prob_see_door_if_door - probability of seeing a door if there is one
+        @param in_prob_see_door_if_door - probability of seeing a door if there is onerobot_sensor
         @param in_prob_see_door_if_not_door - probability of seeing a door if there is NOT one
         """
         # Bayes assignment
         # TODO: Store the input values in TWO dictionaries (one for the door there, one for no door)
         #  Reminder: You should have created the dictionary to hold the dictionaries in the __init__ method above
         #  Second note: all variables should be referenced with self.
-        self.dictionary_container["door"] = {"see_door":in_prob_see_door_if_door,
-                                             "see_no_door": 1-in_prob_see_door_if_door}
-        self.dictionary_container["no_door"] = {"see_door":in_prob_see_door_if_not_door,
-                                                "see_no_door":1-in_prob_see_door_if_not_door}
+        self.door_probabilities["door"] =    {"see_door" : in_prob_see_door_if_door,
+                                                "see_no_door" : 1 - in_prob_see_door_if_door}
+        self.door_probabilities["no_door"] = {"see_door" : in_prob_see_door_if_not_door,
+                                                "see_no_door" : 1 - in_prob_see_door_if_not_door}
 # YOUR CODE HERE
 
     def set_distance_wall_sensor_probabilities(self, sigma=0.1):
@@ -54,6 +54,7 @@ class RobotSensors:
 
         # Kalman assignment
         # TODO: Store the mean and standard deviation
+        self.distance_wall_sensor_noise = {"mean": 0.0, "sigma": sigma}
 # YOUR CODE HERE
 
     def query_door(self, robot_gt, world_gt):
@@ -77,9 +78,9 @@ class RobotSensors:
         random_number = np.random.uniform()
         # STEP 2 - use the random number (and your first if statement) to determine if you should return True or False
         if is_in_front_of_door:
-            return random_number < self.dictionary_container["door"]["see_door"]
+            return random_number < self.door_probabilities["door"]["see_door"]
         else:
-            return random_number > self.dictionary_container["no_door"]["see_no_door"]
+            return random_number > self.door_probabilities["no_door"]["see_no_door"]
 
         # Note: This is just the sample_boolean code from your probabilities assignment
 # YOUR CODE HERE
@@ -94,6 +95,8 @@ class RobotSensors:
         # Kalman assignment
         # TODO: Return the distance to the wall (with noise)
         #  This is the Gaussian assignment from your probabilities homework
+        return robot_gt.robot_loc + \
+               (np.random.normal(self.distance_wall_sensor_noise["mean"], self.distance_wall_sensor_noise["sigma"]))
 # YOUR CODE HERE
 
 

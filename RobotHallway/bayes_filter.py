@@ -27,8 +27,8 @@ class BayesFilter:
         @param n_bins - the number of bins to divide the unit interval (0,1) up into """
 
         # TODO create an array with n_bins, set to uniform distribution
-
-        self.probabilities = [1/n_bins] * n_bins
+        # There are n_bins bins and each bin contains 1/n_bins of the distribution (0,1)
+        self.probabilities = [1.0/n_bins] * n_bins
 # YOUR CODE HERE
 
     def update_belief_sensor_reading(self, world_ground_truth, robot_sensor, sensor_reading):
@@ -54,21 +54,26 @@ class BayesFilter:
         #     You'll need to know if the bin is in front of the door or not to compute this
         # You might find enumerate useful
         #  for i, p in enumerate(self.probabilities):
+        # p(x|y) probabilty that we are in front of a door given that the robot says we are in front of a door
+        # p(y|x) probability that the robot says we are in front of a door given that we are in front of a door
+        # p(x) p(in front of door)
+        # p(y) p(sensor reads door)
         probs = []
         for index, prob in enumerate(self.probabilities):
-            if WorldGroundTruth.is_location_in_front_of_door(world_ground_truth,(index/len(self.probabilities))): # is there actually a door?
-                if sensor_reading:
-                    probs.append(prob * robot_sensor.dictionary_container["door"]["see_door"])
+            # is there actually a door?
+            if WorldGroundTruth.is_location_in_front_of_door(world_ground_truth,(index/len(self.probabilities))):
+                if sensor_reading: # now what does the sensor say?
+                    probs.append(prob * robot_sensor.door_probabilities["door"]["see_door"])
                 else:
-                    probs.append(prob * robot_sensor.dictionary_container["door"]["see_no_door"])
+                    probs.append(prob * robot_sensor.door_probabilities["door"]["see_no_door"])
             else:
                 if not sensor_reading:
-                    probs.append(prob * robot_sensor.dictionary_container["no_door"]["see_no_door"])
+                    probs.append(prob * robot_sensor.door_probabilities["no_door"]["see_no_door"])
                 else:
-                    probs.append(prob * robot_sensor.dictionary_container["no_door"]["see_door"])
+                    probs.append(prob * robot_sensor.door_probabilities["no_door"]["see_door"])
 
         for i in range(len(probs)):
-            self.probabilities[i] = probs[i]/len(probs)
+            self.probabilities[i] = probs[i] / len(probs)
 
 # YOUR CODE HERE
 
@@ -144,12 +149,12 @@ class BayesFilter:
         #  Step 1 predict: update your belief by the action (call one of move_left or move_right)
         #  Step 2 correct: do the correction step (update belief by the sensor reading)
         if u == "move_left":
-            self.update_belief_move_left(self,robot_ground_truth)
+            self.update_belief_move_left(robot_ground_truth)
         elif u == "move_right":
-            self.update_belief_move_right(self,robot_ground_truth)
+            self.update_belief_move_right(robot_ground_truth)
         else:
             print("something is wrong")
-        self.update_belief_sensor_reading(self,world_ground_truth,robot_sensor,z)
+        self.update_belief_sensor_reading(world_ground_truth,robot_sensor,z)
 # YOUR CODE HERE
 
 
@@ -247,6 +252,7 @@ def test_bayes_filter_sensor_update(b_print=True):
         for s in seq:
             bayes_filter.update_belief_sensor_reading(world_ground_truth, robot_sensor, s)
 
+        print(bayes_filter.probabilities)
         # The actual check function
         check_door_probs(bayes_filter, world_ground_truth, probs, seq, b_print)
 
